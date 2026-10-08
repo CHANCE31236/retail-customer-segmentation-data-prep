@@ -27,7 +27,7 @@ same pipeline doubles as a worked example of the
 | File | Purpose |
 |------|---------|
 | `exercises.R` | The exercises with hints |
-| `solutions.R` | Commented solutions with expected outputs printed |
+| `solutions.R` | Commented solutions with expected outputs |
 | `data/customers_raw.csv` | The messy CRM export (24 customers) |
 | `data/customers_clean.csv` | The tidy output, committed as a reference |
 | `docs/data-preparation-spec.md` | The specification: rules, schema, QA checks |
@@ -51,8 +51,24 @@ R 4.0 or newer. The dataset is synthetic and the analysis date is fixed at
 | Bronze | < 800 |
 | — | missing spend stays `NA` and is flagged for CRM follow-up |
 
+CSV files do not carry column types. The round-trip import explicitly treats
+phone numbers and other identifiers as character data, preserving leading zeroes.
+French phone normalization accepts both `FR` and `France`.
+
 The full rule set, the column-by-column schema and the QA checks are in
 [docs/data-preparation-spec.md](docs/data-preparation-spec.md).
+
+## Validation
+
+Run from the repository root:
+
+```bash
+Rscript --vanilla tests/smoke.R
+```
+
+GitHub Actions runs the same checks on every pull request. The exercise file
+retains its practice tasks; automated checks run the completed solutions.
+To display each solution step interactively, use `source("solutions.R", echo = TRUE)`.
 
 ## License
 

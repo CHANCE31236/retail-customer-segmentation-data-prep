@@ -1,8 +1,8 @@
 # =============================================================================
 # retail-customer-segmentation-data-prep - SOLUTIONS
 # -----------------------------------------------------------------------------
-# Every step prints the expected result in a comment. Run the whole file:
-#   source("solutions.R")
+# Comments show the expected results. Display each step with:
+#   source("solutions.R", echo = TRUE)
 # Working directory must contain the data/ folder.
 # =============================================================================
 
@@ -52,9 +52,11 @@ customers <- customers %>%
   mutate(phone_digits   = str_remove_all(phone, "[^0-9]"),
          phone_digits   = if_else(phone_digits == "", NA_character_, phone_digits),
          phone_national = case_when(
-           country == "FR" & str_detect(phone_digits, "^0033") ~
+           str_to_upper(str_trim(country)) %in% c("FR", "FRANCE") &
+             str_detect(phone_digits, "^0033") ~
              str_replace(phone_digits, "^0033", "0"),
-           country == "FR" & str_detect(phone_digits, "^33") & nchar(phone_digits) == 11 ~
+           str_to_upper(str_trim(country)) %in% c("FR", "FRANCE") &
+             str_detect(phone_digits, "^33") & nchar(phone_digits) == 11 ~
              str_replace(phone_digits, "^33", "0"),
            TRUE ~ phone_digits
          ),
@@ -81,13 +83,13 @@ table(customers$email_status)   # invalid 2, missing 1, valid 21
 # f) Country: normalise to ISO2 codes
 customers <- customers %>%
   mutate(country_code = case_when(
-    toupper(country) %in% c("FR", "FRANCE")     ~ "FR",
-    toupper(country) %in% c("DE", "GERMANY")    ~ "DE",
-    toupper(country) %in% c("US", "USA")        ~ "US",
-    toupper(country) %in% c("GB", "UK")         ~ "GB",
-    toupper(country) %in% c("IT", "ITALY")      ~ "IT",
-    toupper(country) %in% c("ES", "SPAIN")      ~ "ES",
-    TRUE                                        ~ toupper(country)
+    toupper(str_trim(country)) %in% c("FR", "FRANCE")     ~ "FR",
+    toupper(str_trim(country)) %in% c("DE", "GERMANY")    ~ "DE",
+    toupper(str_trim(country)) %in% c("US", "USA")        ~ "US",
+    toupper(str_trim(country)) %in% c("GB", "UK")         ~ "GB",
+    toupper(str_trim(country)) %in% c("IT", "ITALY")      ~ "IT",
+    toupper(str_trim(country)) %in% c("ES", "SPAIN")      ~ "ES",
+    TRUE                                        ~ toupper(str_trim(country))
   ))
 table(customers$country_code)
 # CN 1, DE 4, ES 2, FR 10, GB 2, IE 1, IT 2, US 2
@@ -128,6 +130,7 @@ tmp <- str_remove_all(customers$total_spend, "[$,USD ]")   # symbols & separator
 tmp <- ifelse(grepl("^\\(.*\\)$", tmp),                    # parentheses = negative
               paste0("-", str_remove_all(tmp, "[\\(\\)]")),
               tmp)
+tmp[tolower(tmp) == "n/a"] <- NA_character_
 customers$spend_num <- as.numeric(tmp)
 customers$spend_num[c(10, 14, 20)]        # [1]  -250.0 2750.0     NA
 sum(is.na(customers$spend_num))           # [1] 1 - only the deliberate "n/a"
@@ -190,6 +193,18 @@ data.frame(
 # o) Export the tidy dataset
 write_csv(customers, "data/customers_clean.csv")
 # Check the round trip
-clean <- read_csv("data/customers_clean.csv")
+clean <- read_csv("data/customers_clean.csv", show_col_types = FALSE,
+                  col_types = cols(
+                    .default = col_character(),
+                    join_date = col_date(),
+                    last_purchase_date = col_date(),
+                    phone_valid = col_logical(),
+                    orders_num = col_integer(),
+                    spend_num = col_double(),
+                    recency_days = col_double()
+                  ))
 nrow(clean)                    # [1] 24
 colSums(is.na(clean))          # only the intended NAs remain
+# CSV has no type metadata: explicit character columns preserve phone zeros.
+stopifnot(isTRUE(all.equal(as.data.frame(customers), as.data.frame(clean),
+                           check.attributes = FALSE)))
